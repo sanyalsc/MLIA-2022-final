@@ -39,7 +39,6 @@ __all__ = [
     "SwinTransformer",
 ]
 
-
 class SwinUNETR(nn.Module):
     """
     Swin UNETR based on: "Hatamizadeh et al.,
@@ -652,6 +651,7 @@ class PatchMerging(nn.Module):
         x = self.reduction(x)
         return x
 
+MERGING_MODE = {"merging": PatchMerging}
 
 def compute_mask(dims, window_size, shift_size, device):
     """Computing region masks based on: "Liu et al.,
