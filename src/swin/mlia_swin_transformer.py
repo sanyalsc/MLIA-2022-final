@@ -86,12 +86,6 @@ class SwinUNETR(nn.Module):
 
         Examples::
 
-            # for 3D single channel input with size (96,96,96), 4-channel output and feature size of 48.
-            >>> net = SwinUNETR(img_size=(96,96,96), in_channels=1, out_channels=4, feature_size=48)
-
-            # for 3D 4-channel input with size (128,128,128), 3-channel output and (2,4,2,2) layers in each stage.
-            >>> net = SwinUNETR(img_size=(128,128,128), in_channels=4, out_channels=3, depths=(2,4,2,2))
-
             # for 2D single channel input with size (96,96), 2-channel output and gradient checkpointing.
             >>> net = SwinUNETR(img_size=(96,96), in_channels=3, out_channels=2, use_checkpoint=True, spatial_dims=2)
 
@@ -302,13 +296,17 @@ class SwinUNETR(nn.Module):
             )
 
     def forward(self, x_in):
+        """Input is array of (b,c,h,w)?"""
         if self.histogram:
             #UNTESTED!!!
             print('running histogram match')
             matched_imgs = []
             for img in x_in:
-                matched_imgs.append(match_histograms(img,self.histogram_reference,channel_axis=-1))
+                matched_imgs.append(match_histograms(img,self.histogram_reference,channel_axis=0))
             x_in = torch.stack(matched_imgs)
+
+            #Unsure about this, but I think SWIN ViT must be b,c,h,w...:
+            x_in = Rearrange(x_in,'b h w c -> b c h w')
             #\UNTESTED
 
         hidden_states_out = self.swinViT(x_in, self.normalize)

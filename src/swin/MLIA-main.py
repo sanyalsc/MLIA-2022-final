@@ -21,7 +21,7 @@ def load_model_config(config_file:str):
 
 def dataloader(directory,batch_size=1):
     """
-    Loads images in directory and formats them into a list of (b, h, w, c)
+    Loads images in directory and formats them into a list of (b, c, h, w)
     Output arrays are guaranteed to be 4D.
     
     :output numpy array?"""
@@ -32,8 +32,10 @@ def dataloader(directory,batch_size=1):
 def zero_pad_image(data):
     """Pads the width of the images out to 256x256
     
-    :input data - list of (b, h, w, c)
-    :output - list of (b, h, w, c)"""
+    :input data - list of (b, c, h, w )
+    :output - list of (b, c, h, w)"""
+    raise NotImplementedError
+
 
 def train_network(config,input_dir):
     model = SwinUNETR(**config)
@@ -49,6 +51,7 @@ def main(config_filepath,train,inference,input_dir):
         raise NotImplementedError
         #TODO: implement this for testing...
         #run_inference(config,input)
+
 
 if __name__ =='__main__':
     args = load_args()
