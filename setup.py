@@ -13,4 +13,6 @@ setuptools.setup(name='swin',
         'torch',
         'pillow',
         'numpy',
+        'monai',
+        'einops',
       ])
