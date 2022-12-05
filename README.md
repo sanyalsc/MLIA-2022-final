@@ -9,8 +9,7 @@ https://arxiv.org/pdf/2201.01266.pdf
 
 Installation:
 
-python -m pip -e <path to MLIA-2022-FINAL>
+python -m pip -e [path to MLIA-2022-FINAL directory]
 
 Usage:
 TBD
-
