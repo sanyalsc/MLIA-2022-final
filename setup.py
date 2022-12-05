@@ -15,4 +15,5 @@ setuptools.setup(name='swin',
         'numpy',
         'monai',
         'einops',
+        'scikit-image',
       ])

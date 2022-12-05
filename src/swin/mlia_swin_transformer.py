@@ -18,6 +18,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch.utils.checkpoint as checkpoint
 from torch.nn import LayerNorm
+from skimage.exposure import match_histograms
 
 from monai.networks.blocks import MLPBlock as Mlp
 from monai.networks.blocks import PatchEmbed, UnetOutBlock, UnetrBasicBlock, UnetrUpBlock
@@ -99,9 +100,10 @@ class SwinUNETR(nn.Module):
         super().__init__()
 
         if histogram_matching_reference:
-            #Todo: Init histogram matching tool
+            #Todo: test
             print('Loading histogram matching reference')
             self.histogram=True
+            self.histogram_reference = histogram_matching_reference
 
         img_size = ensure_tuple_rep(img_size, spatial_dims)
         patch_size = ensure_tuple_rep(2, spatial_dims)
@@ -301,10 +303,13 @@ class SwinUNETR(nn.Module):
 
     def forward(self, x_in):
         if self.histogram:
+            #UNTESTED!!!
             print('running histogram match')
-        #TODO: Insert histogram matching fxn here
-        #TODO: Delete this print statement afterwards...
-
+            matched_imgs = []
+            for img in x_in:
+                matched_imgs.append(match_histograms(img,self.histogram_reference,channel_axis=-1))
+            x_in = torch.stack(matched_imgs)
+            #\UNTESTED
 
         hidden_states_out = self.swinViT(x_in, self.normalize)
         enc0 = self.encoder1(x_in)

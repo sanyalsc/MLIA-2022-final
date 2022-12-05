@@ -19,8 +19,26 @@ def load_model_config(config_file:str):
         return json.load(cfg)
 
 
+def dataloader(directory,batch_size=1):
+    """
+    Loads images in directory and formats them into a list of (b, h, w, c)
+    Output arrays are guaranteed to be 4D.
+    
+    :output numpy array?"""
+    #TODO: implement.
+    raise NotImplementedError
+
+
+def zero_pad_image(data):
+    """Pads the width of the images out to 256x256
+    
+    :input data - list of (b, h, w, c)
+    :output - list of (b, h, w, c)"""
+
 def train_network(config,input_dir):
     model = SwinUNETR(**config)
+    #TODO: 1) implement training
+    #TODO: 2) save trained weights and 
 
 
 def main(config_filepath,train,inference,input_dir):
