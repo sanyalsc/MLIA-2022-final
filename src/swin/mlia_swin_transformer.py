@@ -18,14 +18,13 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch.utils.checkpoint as checkpoint
 from torch.nn import LayerNorm
-from skimage.exposure import match_histograms
+from einops.layers.torch import Rearrange, Reduce
 
 from monai.networks.blocks import MLPBlock as Mlp
 from monai.networks.blocks import PatchEmbed, UnetOutBlock, UnetrBasicBlock, UnetrUpBlock
 from monai.networks.layers import DropPath, trunc_normal_
 from monai.utils import ensure_tuple_rep, look_up_option
-
-from einops.layers.torch import Rearrange, Reduce
+from swin.hist_utils import preprocess as histogram_match
 
 __all__ = [
     "SwinUNETR",
@@ -299,15 +298,7 @@ class SwinUNETR(nn.Module):
         """Input is array of (b,c,h,w)?"""
         if self.histogram:
             #UNTESTED!!!
-            print('running histogram match')
-            matched_imgs = []
-            for img in x_in:
-                matched_imgs.append(match_histograms(img,self.histogram_reference,channel_axis=0))
-            x_in = torch.stack(matched_imgs)
-
-            #Unsure about this, but I think SWIN ViT must be b,c,h,w...:
-            x_in = Rearrange(x_in,'b h w c -> b c h w')
-            #\UNTESTED
+            x_in = histogram_match(x_in, self.histogram_reference)
 
         hidden_states_out = self.swinViT(x_in, self.normalize)
         enc0 = self.encoder1(x_in)
