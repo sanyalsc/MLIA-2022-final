@@ -12,4 +12,5 @@ setuptools.setup(name='swin',
       install_requires=[
         'torch',
         'pillow',
+        'numpy',
       ])
