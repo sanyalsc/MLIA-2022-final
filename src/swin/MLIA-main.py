@@ -1,7 +1,10 @@
 import argparse
+import os
 import sys
 
+import numpy as np
 import json
+from PIL import Image
 
 from swin.mlia_swin_transformer import SwinUNETR
 
@@ -19,14 +22,37 @@ def load_model_config(config_file:str):
         return json.load(cfg)
 
 
-def dataloader(directory,batch_size=1):
+def dataloader(directory, batch_size=1):
     """
     Loads images in directory and formats them into a list of (b, c, h, w)
     Output arrays are guaranteed to be 4D.
-    
-    :output numpy array?"""
-    #TODO: implement.
-    raise NotImplementedError
+
+    :param directory: input data directory
+    :param batch_size: number of images per batch
+    :returns: list of 4D numpy array
+    """
+    img_files = [f for f in os.listdir(directory) if f.endswith('.png')]
+    num_imgs = len(img_files)
+    assert num_imgs % batch_size == 0, f'number of images ({num_imgs}) is not divisible by batch size ({batch_size})'
+
+    data = np.asarray(Image.open(os.path.join(directory, img_files[0])))
+    h, w = data.shape
+
+    data_list = []
+    data_arr = np.empty([batch_size, 1, h, w])
+    batch_idx = 0
+    for img_idx, filename in enumerate(img_files):
+        # new batch
+        if img_idx % batch_size == 0 and img_idx > 0:
+            data_list.append(data_arr)
+            data_arr = np.empty([batch_size, 1, h, w])
+            batch_idx = 0
+
+        data = np.asarray(Image.open(os.path.join(directory, filename)))
+        data_arr[batch_idx, 0] = data
+        batch_idx += 1
+
+    return data_list
 
 
 def zero_pad_image(data):
