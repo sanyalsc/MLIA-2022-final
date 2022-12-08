@@ -34,6 +34,17 @@ def zero_pad_image(data):
     
     :input data - list of (b, c, h, w )
     :output - list of (b, c, h, w)"""
+    lastPix = data[-1]
+    prevH = lastPix[2]
+    prevW = lastPix[3]
+    diff = (256 - prevW)/2
+    for i in prevH:
+        for j in range(diff):
+            data = [0,0,0,0] + data + [0,0,0,0]
+    lastPix_new = data[-1]
+    currentH = lastPix_new[2]
+    currentW = lastPix_new[3]
+    print("the images have been padded out to", currentH, currentW)
     raise NotImplementedError
 
 
