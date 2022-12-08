@@ -2,3 +2,4 @@
 *.pyc
 **/swin.egg-info
 **/__pycache__
+build/
