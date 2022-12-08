@@ -47,28 +47,30 @@ def augment_data(input_data_dir, input_mask_dir, output_data_dir, output_mask_di
         mask_img = Image.open(mask_path)
 
         for i in range(multiplier):
-            # random horizontal flip
-            if random.randint(0, 1) == 1:
-                data_img = ImageOps.mirror(data_img)
-                mask_img = ImageOps.mirror(mask_img)
+            # save original, then augment the rest
+            if i > 0:
+                # random horizontal flip
+                if random.randint(0, 1) == 1:
+                    data_img = ImageOps.mirror(data_img)
+                    mask_img = ImageOps.mirror(mask_img)
 
-            # random rotate
-            angle = random.randint(*rotate_range)
-            aug_data = data_img.rotate(angle)
-            aug_mask = mask_img.rotate(angle)
+                # random rotate
+                angle = random.randint(*rotate_range)
+                data_img = data_img.rotate(angle)
+                mask_img = mask_img.rotate(angle)
 
-            # (x, y) -> (ax + by + c, dx + ey + f)
-            a = 1
-            b = 0
-            c = random.randint(*translate_range)  # left/right
-            d = 0
-            e = 1
-            f = random.randint(*translate_range)  # up/down
-            transform = (a, b, c, d, e, f)
-            # random translate
-            aug_data = aug_data.transform(data_img.size, Image.AFFINE, transform, Image.BILINEAR)
-            aug_mask = aug_mask.transform(mask_img.size, Image.AFFINE, transform, Image.BILINEAR)
+                # (x, y) -> (ax + by + c, dx + ey + f)
+                a = 1
+                b = 0
+                c = random.randint(*translate_range)  # left/right
+                d = 0
+                e = 1
+                f = random.randint(*translate_range)  # up/down
+                transform = (a, b, c, d, e, f)
+                # random translate
+                data_img = data_img.transform(data_img.size, Image.AFFINE, transform, Image.BILINEAR)
+                mask_img = mask_img.transform(mask_img.size, Image.AFFINE, transform, Image.BILINEAR)
 
-            aug_data.save(os.path.join(output_data_dir, f'img{aug_no}.png'))
-            aug_mask.save(os.path.join(output_mask_dir, f'mask{aug_no}.png'))
+            data_img.save(os.path.join(output_data_dir, f'img{aug_no}.png'))
+            mask_img.save(os.path.join(output_mask_dir, f'mask{aug_no}.png'))
             aug_no += 1
