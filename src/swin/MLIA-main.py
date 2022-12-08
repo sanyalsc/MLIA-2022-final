@@ -6,6 +6,7 @@ import numpy as np
 import json
 from PIL import Image
 
+from swin.hist_utils import augment_data
 from swin.mlia_swin_transformer import SwinUNETR
 
 def load_args():
@@ -22,7 +23,17 @@ def load_model_config(config_file:str):
         return json.load(cfg)
 
 
-def dataloader(directory, batch_size=1):
+
+def augment(training_dir, multiplier):
+    src_img_dir = os.path.join(training_dir, 'train_imageData')
+    src_mask_dir = os.path.join(training_dir, 'train_myocardium_segmentations')
+
+    augment_img_dir = src_img_dir + '_AUGMENTED'
+    augment_mask_dir = src_mask_dir + '_AUGMENTED'
+    augment_data(src_img_dir, src_mask_dir, augment_img_dir, augment_mask_dir, multiplier)
+
+
+def dataloader(directory,batch_size=1):
     """
     Loads images in directory and formats them into a list of (b, c, h, w)
     Output arrays are guaranteed to be 4D.
@@ -60,6 +71,17 @@ def zero_pad_image(data):
     
     :input data - list of (b, c, h, w )
     :output - list of (b, c, h, w)"""
+    lastPix = data[-1]
+    prevH = lastPix[2]
+    prevW = lastPix[3]
+    diff = (256 - prevW)/2
+    for i in prevH:
+        for j in range(diff):
+            data = [0,0,0,0] + data + [0,0,0,0]
+    lastPix_new = data[-1]
+    currentH = lastPix_new[2]
+    currentW = lastPix_new[3]
+    print("the images have been padded out to", currentH, currentW)
     raise NotImplementedError
 
 
@@ -72,6 +94,9 @@ def train_network(config,input_dir):
 def main(config_filepath,train,inference,input_dir):
     config = load_model_config(config_filepath)
     if args.train:
+        training_dir = os.path.join(os.getcwd(), '..', '..', 'data', 'Training')
+        augment(training_dir, multiplier=6)
+
         train_network(config,input_dir)
     elif args.inference:
         raise NotImplementedError
