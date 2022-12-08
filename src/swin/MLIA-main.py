@@ -32,35 +32,48 @@ def augment(training_dir, multiplier):
     augment_mask_dir = src_mask_dir + '_AUGMENTED'
     augment_data(src_img_dir, src_mask_dir, augment_img_dir, augment_mask_dir, multiplier)
 
+    return (augment_img_dir, augment_mask_dir)
 
-def dataloader(directory,batch_size=1):
+
+def dataloader(data_dir, mask_dir, batch_size=1):
     """
     Loads images in directory and formats them into a list of (b, c, h, w)
     Output arrays are guaranteed to be 4D.
 
-    :param directory: input data directory
+    :param data_dir: input data directory
+    :param mask_dir: input label mask directory
     :param batch_size: number of images per batch
-    :returns: list of 4D numpy array
+    :returns: list of dictionaries (k: string "image"/"label", v: 4D numpy array)
     """
-    img_files = [f for f in os.listdir(directory) if f.endswith('.png')]
-    num_imgs = len(img_files)
+    image_files = [f for f in os.listdir(data_dir) if f.endswith('.png')]
+    label_files = [f for f in os.listdir(mask_dir) if f.endswith('.png')]
+    assert len(image_files) == len(label_files), 'number of images does not match number of labels'
+
+    num_imgs = len(image_files)
     assert num_imgs % batch_size == 0, f'number of images ({num_imgs}) is not divisible by batch size ({batch_size})'
 
-    data = np.asarray(Image.open(os.path.join(directory, img_files[0])))
+    data = np.asarray(Image.open(os.path.join(data_dir, image_files[0])))
     h, w = data.shape
 
     data_list = []
-    data_arr = np.empty([batch_size, 1, h, w])
+    image_arr = np.empty([batch_size, 1, h, w])
+    label_arr = np.empty([batch_size, 1, h, w])
     batch_idx = 0
-    for img_idx, filename in enumerate(img_files):
+    for f_idx, filename in enumerate(image_files):
+        src_no = int(filename.replace('im', '').replace('.png', ''))
+        image_path = os.path.join(data_dir, filename)
+        label_path = os.path.join(mask_dir, f'mask{src_no}.png')
+        assert os.path.exists(label_path), f'{label_path} does not exist'
+
         # new batch
-        if img_idx % batch_size == 0 and img_idx > 0:
-            data_list.append(data_arr)
-            data_arr = np.empty([batch_size, 1, h, w])
+        if f_idx % batch_size == 0 and f_idx > 0:
+            data_list.append({"image": image_arr, "label": label_arr})
+            image_arr = np.empty([batch_size, 1, h, w])
+            label_arr = np.empty([batch_size, 1, h, w])
             batch_idx = 0
 
-        data = np.asarray(Image.open(os.path.join(directory, filename)))
-        data_arr[batch_idx, 0] = data
+        image_arr[batch_idx, 0] = np.asarray(Image.open(image_path))
+        label_arr[batch_idx, 0] = np.asarray(Image.open(label_path))
         batch_idx += 1
 
     return data_list
@@ -95,7 +108,11 @@ def main(config_filepath,train,inference,input_dir):
     config = load_model_config(config_filepath)
     if args.train:
         training_dir = os.path.join(os.getcwd(), '..', '..', 'data', 'Training')
-        augment(training_dir, multiplier=6)
+        image_dir, label_dir = augment(training_dir, multiplier=6)
+
+        #TODO: zero-pad augmented data
+
+        data_dict = dataloader(image_dir, training_dir, batch_size=1)
 
         train_network(config,input_dir)
     elif args.inference:
