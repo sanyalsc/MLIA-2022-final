@@ -1,8 +1,10 @@
 import argparse
+import os
 import sys
 
 import json
 
+from swin.hist_utils import augment_data
 from swin.mlia_swin_transformer import SwinUNETR
 
 def load_args():
@@ -17,6 +19,15 @@ def load_args():
 def load_model_config(config_file:str):
     with open(config_file,'r') as cfg:
         return json.load(cfg)
+
+
+def augment(training_dir, multiplier):
+    src_img_dir = os.path.join(training_dir, 'train_imageData')
+    src_mask_dir = os.path.join(training_dir, 'train_myocardium_segmentations')
+
+    augment_img_dir = src_img_dir + '_AUGMENTED'
+    augment_mask_dir = src_mask_dir + '_AUGMENTED'
+    augment_data(src_img_dir, src_mask_dir, augment_img_dir, augment_mask_dir, multiplier)
 
 
 def dataloader(directory,batch_size=1):
@@ -57,6 +68,9 @@ def train_network(config,input_dir):
 def main(config_filepath,train,inference,input_dir):
     config = load_model_config(config_filepath)
     if args.train:
+        training_dir = os.path.join(os.getcwd(), '..', '..', 'data', 'Training')
+        augment(training_dir, multiplier=6)
+
         train_network(config,input_dir)
     elif args.inference:
         raise NotImplementedError
