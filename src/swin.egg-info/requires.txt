@@ -1,5 +1,0 @@
-torch
-pillow
-numpy
-monai
-einops
