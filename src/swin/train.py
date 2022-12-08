@@ -14,6 +14,22 @@
   model = SwinUNETR(img_size=(96, 96),in_channels=3, out_channels=2, 
                     use_checkpoint=True, spatial_dims=2).to(device)
 
+  max_iterations = 5000
+  eval_num = 250
+  post_label = AsDiscrete(to_onehot=14)
+  post_pred = AsDiscrete(argmax=True, to_onehot=14)
+  dice_metric = DiceMetric(include_background=True, reduction="mean", get_not_nans=False)
+  global_step = 0
+  dice_val_best = 0.0
+  global_step_best = 0
+  epoch_loss_values = []
+  metric_values = []
+  while global_step < max_iterations:
+      global_step, dice_val_best, global_step_best = train(
+          global_step, train_loader, dice_val_best, global_step_best
+      )
+ 
+
 
   def validation(epoch_iterator_val):
       model.eval()
@@ -39,7 +55,7 @@
       return mean_dice_val
 
 
-
+#train_loader traindataset
    def train(global_step, train_loader, dice_val_best, global_step_best):
      model.train()
      epoch_loss = 0
