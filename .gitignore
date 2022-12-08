@@ -1,2 +1,4 @@
 /.idea
 *.pyc
+**/swin.egg-info
+**/__pycache__
