@@ -36,7 +36,7 @@ def augment_data(input_data_dir, input_mask_dir, output_data_dir, output_mask_di
     if not os.path.exists(output_mask_dir):
         os.mkdir(output_mask_dir)
 
-    aug_no = 1
+    aug_no = 1 + len(data_files)
     for filename in data_files:
         src_no = int(filename.replace('im', '').replace('.png', ''))
         data_path = os.path.join(input_data_dir, filename)
