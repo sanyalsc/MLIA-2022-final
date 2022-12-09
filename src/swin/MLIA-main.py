@@ -128,9 +128,6 @@ def train_network(config,input_dir,output_dir):
     hyp = config['hyperparams']
     global_step = 0
     dice_val_best = 0
-    global_step_best = 0
-    epoch_loss_values = []
-    metric_values = []
     train_X_location = os.path.join(input_dir,hyp['X_data_folder'])
     train_Y_location = os.path.join(input_dir,hyp['Y_data_folder'])
     data = dataloader(train_X_location,train_Y_location,batch=hyp['batch_size'])
@@ -141,8 +138,10 @@ def train_network(config,input_dir,output_dir):
             train(global_step, train_data, val_data, model, dice_val_best=0, global_step_best=0,
             device=DEVICE, output_dir='/scratch/ejg8qa/RESULTS'
         )
-    #TODO: 1) implement training
-    #TODO: 2) save trained weights and 
+    
+    result_log = os.path.join(output_dir,'final_result.txt')
+    with open(result_log,'w') as f:
+        f.write(f'Final results:\nBest Dice: {dice_val_best}\nGlobal step:{global_step_best}')
 
 
 def main(config_filepath,train,inference,input_dir):
