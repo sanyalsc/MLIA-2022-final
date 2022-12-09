@@ -16,4 +16,5 @@ setuptools.setup(name='swin',
         'monai',
         'einops',
         'scikit-image',
+        'tqdm'
       ])

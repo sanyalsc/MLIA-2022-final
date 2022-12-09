@@ -1,33 +1,26 @@
 import os
+
 import tqdm
+import torch
+
 from monai.metrics import DiceMetric
 from monai.losses import DiceCELoss
 from monai.inferers import sliding_window_inference
 from monai.transforms import (
     AsDiscrete,
 )
-import torch
+from monai.data import decollate_batch
+
 
 DEFAULT_DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-max_iterations = 5000
-eval_num = 250
-post_label = AsDiscrete(to_onehot=2)
-post_pred = AsDiscrete(argmax=True, to_onehot=2)
-dice_metric = DiceMetric(include_background=True, reduction="mean", get_not_nans=False)
-global_step = 0
-dice_val_best = 0.0
-global_step_best = 0
-epoch_loss_values = []
-metric_values = []
-while global_step < max_iterations:
-    global_step, dice_val_best, global_step_best = train(
-        global_step, train_loader, dice_val_best, global_step_best
-    )
 
 
 
-def validation(epoch_iterator_val,model):
+def validation(epoch_iterator_val,model,global_step):
     model.eval()
+    post_label = AsDiscrete(to_onehot=2)
+    post_pred = AsDiscrete(argmax=True, to_onehot=2)
+    dice_metric = DiceMetric(include_background=True, reduction="mean", get_not_nans=False)
     with torch.no_grad():
         for step, batch in enumerate(epoch_iterator_val):
             val_inputs, val_labels = (batch["image"].cuda(), batch["label"].cuda())
@@ -50,16 +43,20 @@ def validation(epoch_iterator_val,model):
     return mean_dice_val
 
 
-#train_loader traindataset
 def train(global_step, train_loader, val_loader, model, dice_val_best=0, global_step_best=0,
-            device=DEFAULT_DEVICE, output_dir='/scratch/ejg8qa/RESULTS'):
+            device=DEFAULT_DEVICE, output_dir='/scratch/ejg8qa/RESULTS', eval_num=250,
+            max_iterations=5000):
+    
     model.train()
     torch.backends.cudnn.benchmark = True
     loss_function = DiceCELoss(to_onehot_y=True, softmax=True)
     optimizer = torch.optim.AdamW(model.parameters(), lr=1e-4, weight_decay=1e-5)
     scaler = torch.cuda.amp.GradScaler()
+    
     epoch_loss = 0
     step = 0
+    epoch_loss_values = []
+    metric_values = []
     epoch_iterator = tqdm(
         train_loader, desc="Training (X / X Steps) (loss=X.X)", dynamic_ncols=True)
     for step, batch in enumerate(epoch_iterator):
@@ -83,7 +80,7 @@ def train(global_step, train_loader, val_loader, model, dice_val_best=0, global_
             val_loader, desc="Validate (X / X Steps) (dice=X.X)", dynamic_ncols=True
             )
             # track val metric
-            dice_val = validation(epoch_iterator_val,model)
+            dice_val = validation(epoch_iterator_val,model,global_step)
             epoch_loss /= step
             epoch_loss_values.append(epoch_loss)
             metric_values.append(dice_val)

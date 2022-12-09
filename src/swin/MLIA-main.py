@@ -9,6 +9,7 @@ import torch
 
 from swin.hist_utils import augment_data
 from swin.mlia_swin_transformer import SwinUNETR
+from swin.train import train, validation
 
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -18,6 +19,7 @@ def load_args():
     parser.add_argument('--inference',action='store_true',help='Run inference on the network')
     parser.add_argument('--net-cfg',required=True,help='Network configuration')
     parser.add_argument('--input',required=True,help='Input directory of images')
+    parser.add_argument('--output',default='/scratch/ejg8qa/network_out',help='output directory for results and weights')
     return parser.parse_args()
 
 
@@ -36,7 +38,7 @@ def augment(training_dir, multiplier):
     augment_data(src_img_dir, src_mask_dir, augment_img_dir, augment_mask_dir, multiplier)
 
 
-def dataloader(directory,batch_size=1):
+def dataloader(x_dir,y_dir,batch_size=1):
     """
     Loads images in directory and formats them into a list of (b, c, h, w)
     Output arrays are guaranteed to be 4D.
@@ -45,28 +47,60 @@ def dataloader(directory,batch_size=1):
     :param batch_size: number of images per batch
     :returns: list of 4D numpy array
     """
-    img_files = [f for f in os.listdir(directory) if f.endswith('.png')]
-    num_imgs = len(img_files)
-    assert num_imgs % batch_size == 0, f'number of images ({num_imgs}) is not divisible by batch size ({batch_size})'
+    x_files = [f for f in os.listdir(x_dir) if f.endswith('.png')]
+    if y_dir:
+        y_files = [f for f in os.listdir(y_dir) if f.endswith('.png')]
+    num_imgs = len(x_files)
+    #assert num_imgs % batch_size == 0, f'number of images ({num_imgs}) is not divisible by batch size ({batch_size})'
+    leftover_batch_size = num_imgs % batch_size
+    full_batches = num_imgs // batch_size
 
-    data = np.asarray(Image.open(os.path.join(directory, img_files[0])))
-    h, w = data.shape
+    full_data = []
+    for batch in range(full_batches - 1):
+        b_start = batch*batch_size
+        b_end = (batch+1)*batch_size
+        files_x = x_files[b_start:b_end]
+        cur_x = []
+        x_names = []
+        cur_y = []
+        y_names = []
+        for img in files_x:
+            fp = os.path.join(x_dir,img)
+            cur_x.append(np.asarray(Image.open(fp).resize((256,256))))
+            x_names.append(img)
+            if y_dir:
+                idx = img[2:]
+                y_file = f'mask{idx}'
+                fpy = os.path.join(y_dir,y_file)
+                cur_y.append(np.asarray(Image.open(fpy).resize((256,256))))
+                y_names.append(y_file)
+        batch_x = np.expand_dims(np.stack(cur_x),axis=1)
+        batch_y = np.expand_dims(np.stack(cur_y),axis=1)
 
-    data_list = []
-    data_arr = np.empty([batch_size, 1, h, w])
-    batch_idx = 0
-    for img_idx, filename in enumerate(img_files):
-        # new batch
-        if img_idx % batch_size == 0 and img_idx > 0:
-            data_list.append(data_arr)
-            data_arr = np.empty([batch_size, 1, h, w])
-            batch_idx = 0
+        full_data.append({"image":np.stack(batch_x),"label":np.stack(batch_y),"xnames":x_names,"ynames":y_names})
 
-        data = np.asarray(Image.open(os.path.join(directory, filename)))
-        data_arr[batch_idx, 0] = data
-        batch_idx += 1
+    if leftover_batch_size:
+        files_x = x_files[full_batches*20:]
+        cur_x = []
+        cur_y = []
+        x_names = []
+        y_names = []
+        for img in files_x:
+            fp = os.path.join(x_dir,img)
+            cur_x.append(np.asarray(Image.open(fp).resize((256,256))))
+            x_names.append(img)
+            if y_dir:
+                idx = img[2:]
+                y_file = f'mask{idx}'
+                fpy = os.path.join(y_dir,y_file)
+                cur_y.append(np.asarray(Image.open(fpy).resize((256,256))))
+                y_names.append(y_file)
 
-    return data_list
+        batch_x = np.expand_dims(np.stack(cur_x),axis=1)
+        batch_y = np.expand_dims(np.stack(cur_y),axis=1)
+        full_data.append({"image":np.stack(batch_x),"label":np.stack(batch_y),"xnames":x_names,"ynames":y_names})
+
+    return full_data
 
 
 def zero_pad_image(data):
@@ -88,10 +122,25 @@ def zero_pad_image(data):
     raise NotImplementedError
 
 
-def train_network(config,input_dir):
+def train_network(config,input_dir,output_dir):
     model = SwinUNETR(**config['swin']).to(DEVICE)
 
-    train(global_step, train_loader, model, dice_val_best=0, global_step_best=0)
+    hyp = config['hyperparams']
+    global_step = 0
+    dice_val_best = 0
+    global_step_best = 0
+    epoch_loss_values = []
+    metric_values = []
+    train_X_location = os.path.join(input_dir,hyp['X_data_folder'])
+    train_Y_location = os.path.join(input_dir,hyp['Y_data_folder'])
+    data = dataloader(train_X_location,train_Y_location,batch=hyp['batch_size'])
+    train_data = data[:-2]
+    val_data = data[-2:]
+    while global_step < hyp['max_iterations']:
+        global_step, dice_val_best, global_step_best = \
+            train(global_step, train_data, val_data, model, dice_val_best=0, global_step_best=0,
+            device=DEVICE, output_dir='/scratch/ejg8qa/RESULTS'
+        )
     #TODO: 1) implement training
     #TODO: 2) save trained weights and 
 
@@ -111,4 +160,4 @@ def main(config_filepath,train,inference,input_dir):
 
 if __name__ =='__main__':
     args = load_args()
-    main(args.net_cfg,args.train,args.inference,args.input)
+    main(args.net_cfg,args.train,args.inference,args.input,args.output)
