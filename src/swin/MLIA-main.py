@@ -5,9 +5,12 @@ import sys
 import numpy as np
 import json
 from PIL import Image
+import torch
 
 from swin.hist_utils import augment_data
 from swin.mlia_swin_transformer import SwinUNETR
+
+DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 def load_args():
     parser = argparse.ArgumentParser()
@@ -86,7 +89,9 @@ def zero_pad_image(data):
 
 
 def train_network(config,input_dir):
-    model = SwinUNETR(**config)
+    model = SwinUNETR(**config['swin']).to(DEVICE)
+
+    train(global_step, train_loader, model, dice_val_best=0, global_step_best=0)
     #TODO: 1) implement training
     #TODO: 2) save trained weights and 
 
