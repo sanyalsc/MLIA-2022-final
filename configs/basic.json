@@ -2,7 +2,7 @@
     "swin":{
         "img_size": [256,256],
         "in_channels": 1,
-        "out_channels": 2,
+        "out_channels": 1,
         "depths":  [2, 2, 2, 2],
         "num_heads": [3, 6, 12, 24],
         "feature_size": 24,
@@ -14,7 +14,7 @@
         "use_checkpoint": false,
         "spatial_dims": 2,
         "downsample":"merging",
-        "histogram_matching_reference":""
+        "histogram_matching_reference":"C:\\Users\\Alekche\\Documents\\UVA\\MLIA\\T4_Image\\CardiacImage_data\\Training\\train_imageData\\im107.png"
     },
     "hyperparams":{
         "batch_size":10,

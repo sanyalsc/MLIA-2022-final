@@ -1,7 +1,9 @@
 import os
+import sys
 
-import tqdm
+from tqdm import tqdm
 import torch
+import numpy as np
 
 from monai.metrics import DiceMetric
 from monai.losses import DiceCELoss
@@ -23,7 +25,7 @@ def validation(epoch_iterator_val,model,global_step):
     dice_metric = DiceMetric(include_background=True, reduction="mean", get_not_nans=False)
     with torch.no_grad():
         for step, batch in enumerate(epoch_iterator_val):
-            val_inputs, val_labels = (batch["image"].cuda(), batch["label"].cuda())
+            val_inputs, val_labels = (torch.from_numpy(batch["image"]), torch.from_numpy(batch["label"]))
             with torch.cuda.amp.autocast():
                 val_outputs = sliding_window_inference(val_inputs, (96, 96), 4, model)
             val_labels_list = decollate_batch(val_labels)
@@ -61,9 +63,11 @@ def train(global_step, train_loader, val_loader, model, dice_val_best=0, global_
         train_loader, desc="Training (X / X Steps) (loss=X.X)", dynamic_ncols=True)
     for step, batch in enumerate(epoch_iterator):
         step += 1
-        x, y = (batch["image"].to(device), batch["label"].to(device))
+
+        x, y = (torch.from_numpy(batch["image"]).to(device), torch.from_numpy(batch["label"]).to(device))
         with torch.cuda.amp.autocast():
             logit_map = model(x)
+            #import pdb;pdb.set_trace()
             loss = loss_function(logit_map, y)
         scaler.scale(loss).backward()
         # track loss metric

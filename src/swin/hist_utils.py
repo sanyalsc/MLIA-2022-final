@@ -10,10 +10,14 @@ def preprocess(input_batch, reference):
     """Assumes input is (b, c, h, w)"""
     print('running histogram match')
     matched_imgs = []
-    for img in input_batch:
-        matched_imgs.append(match_histograms(img, reference, channel_axis=0))
+    device = input_batch.device
+    for img in input_batch.numpy():
+        match_img = match_histograms(img, reference, channel_axis=0)
+        matched_imgs.append(torch.from_numpy(match_img))
         # TODO: Make sure output of match_histograms is c, h, w !!
-    return torch.stack(matched_imgs)
+    
+    result = torch.stack(matched_imgs)
+    return result.to(device=device,dtype=torch.float32)
 
 
 def augment_data(input_data_dir, input_mask_dir, output_data_dir, output_mask_dir, multiplier,

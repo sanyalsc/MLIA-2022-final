@@ -1,11 +1,13 @@
 import argparse
 import os
 import sys
+from time import time
 
 import numpy as np
 import json
 from PIL import Image
 import torch
+import pdb
 
 from swin.hist_utils import augment_data
 from swin.mlia_swin_transformer import SwinUNETR
@@ -38,7 +40,7 @@ def augment(training_dir, multiplier):
     augment_data(src_img_dir, src_mask_dir, augment_img_dir, augment_mask_dir, multiplier)
 
 
-def dataloader(x_dir,y_dir,batch_size=1):
+def dataloader(x_dir,y_dir,batch_size=1,ref=None):
     """
     Loads images in directory and formats them into a list of (b, c, h, w)
     Output arrays are guaranteed to be 4D.
@@ -74,13 +76,12 @@ def dataloader(x_dir,y_dir,batch_size=1):
                 fpy = os.path.join(y_dir,y_file)
                 cur_y.append(np.asarray(Image.open(fpy).resize((256,256))))
                 y_names.append(y_file)
-        batch_x = np.expand_dims(np.stack(cur_x),axis=1)
-        batch_y = np.expand_dims(np.stack(cur_y),axis=1)
-
-        full_data.append({"image":np.stack(batch_x),"label":np.stack(batch_y),"xnames":x_names,"ynames":y_names})
+        batch_x = np.expand_dims(np.array(cur_x),axis=1)
+        batch_y = np.expand_dims(np.array(cur_y),axis=1)
+        full_data.append({"image":batch_x,"label":batch_y,"xnames":x_names,"ynames":y_names})
 
     if leftover_batch_size:
-        files_x = x_files[full_batches*20:]
+        files_x = x_files[full_batches*batch_size:]
         cur_x = []
         cur_y = []
         x_names = []
@@ -96,9 +97,9 @@ def dataloader(x_dir,y_dir,batch_size=1):
                 cur_y.append(np.asarray(Image.open(fpy).resize((256,256))))
                 y_names.append(y_file)
 
-        batch_x = np.expand_dims(np.stack(cur_x),axis=1)
-        batch_y = np.expand_dims(np.stack(cur_y),axis=1)
-        full_data.append({"image":np.stack(batch_x),"label":np.stack(batch_y),"xnames":x_names,"ynames":y_names})
+        batch_x = np.expand_dims(np.array(cur_x),axis=1)
+        batch_y = np.expand_dims(np.array(cur_y),axis=1)
+        full_data.append({"image":batch_x,"label":batch_y,"xnames":x_names,"ynames":y_names})
 
     return full_data
 
@@ -128,30 +129,39 @@ def train_network(config,input_dir,output_dir):
     hyp = config['hyperparams']
     global_step = 0
     dice_val_best = 0
+    ref = Image.open(config['swin']['histogram_matching_reference'])
+    ref = np.expand_dims(np.array(ref),axis=0)
+    sd = time()
     train_X_location = os.path.join(input_dir,hyp['X_data_folder'])
     train_Y_location = os.path.join(input_dir,hyp['Y_data_folder'])
-    data = dataloader(train_X_location,train_Y_location,batch=hyp['batch_size'])
+    data = dataloader(train_X_location,train_Y_location,batch_size=hyp['batch_size'],ref=ref)
     train_data = data[:-2]
     val_data = data[-2:]
+    ed = time()
+
+    print(f'Loaded images in {ed-sd} sec.')
+    print(f"Beginning training with {len(train_data)} epochs and {len(val_data)} validation epochs")
     while global_step < hyp['max_iterations']:
+        step_start = time()
         global_step, dice_val_best, global_step_best = \
             train(global_step, train_data, val_data, model, dice_val_best=0, global_step_best=0,
-            device=DEVICE, output_dir='/scratch/ejg8qa/RESULTS'
+            device=DEVICE, output_dir=os.path.join(output_dir,'RESULTS')
         )
+        print(f'Step {global_step} finished in {time() - step_start}')
     
     result_log = os.path.join(output_dir,'final_result.txt')
     with open(result_log,'w') as f:
         f.write(f'Final results:\nBest Dice: {dice_val_best}\nGlobal step:{global_step_best}')
 
 
-def main(config_filepath,train,inference,input_dir):
+def main(config_filepath,train,inference,input_dir,output_dir):
     config = load_model_config(config_filepath)
-    if args.train:
-        training_dir = os.path.join(os.getcwd(), '..', '..', 'data', 'Training')
-        augment(training_dir, multiplier=6)
+    if train:
+        #training_dir = os.path.join(os.getcwd(), '..', '..', 'data', 'Training')
+        augment(input_dir, multiplier=6)
 
-        train_network(config,input_dir)
-    elif args.inference:
+        train_network(config,input_dir,output_dir)
+    elif inference:
         raise NotImplementedError
         #TODO: implement this for testing...
         #run_inference(config,input)
