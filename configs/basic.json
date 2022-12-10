@@ -11,7 +11,7 @@
         "attn_drop_rate": 0.0,
         "dropout_path_rate": 0.0,
         "normalize": true,
-        "use_checkpoint": false,
+        "use_checkpoint": true,
         "spatial_dims": 2,
         "downsample":"merging",
         "histogram_matching_reference":"C:\\Users\\Alekche\\Documents\\UVA\\MLIA\\T4_Image\\CardiacImage_data\\Training\\train_imageData\\im107.png"
@@ -20,6 +20,7 @@
         "batch_size":10,
         "X_data_folder":"train_imageData",
         "Y_data_folder":"train_myocardium_segmentations",
-        "max_iterations":5000
+        "max_iterations":5000,
+        "weights":""
     }
 }

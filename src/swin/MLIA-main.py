@@ -132,6 +132,9 @@ def train_network(config,input_dir,output_dir):
     model = SwinUNETR(**config['swin']).to(DEVICE)
 
     hyp = config['hyperparams']
+    if hyp['weights']:
+        weights = torch.load(hyp['weights'])
+        model.load_state_dict(weights)
     global_step = 0
     dice_val_best = 0
     ref = Image.open(config['swin']['histogram_matching_reference'])
@@ -144,7 +147,6 @@ def train_network(config,input_dir,output_dir):
     #val_data = data[-2:]
     train_data, val_data = train_test_split(data,test_size=0.2)
     ed = time()
-    pdb.set_trace()
 
     print(f'Loaded images in {ed-sd} sec.')
     print(f"Beginning training with {len(train_data)} epochs and {len(val_data)} validation epochs")
