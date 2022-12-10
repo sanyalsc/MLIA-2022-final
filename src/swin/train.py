@@ -27,7 +27,7 @@ def validation(epoch_iterator_val,model,global_step):
         for step, batch in enumerate(epoch_iterator_val):
             val_inputs, val_labels = (torch.from_numpy(batch["image"]), torch.from_numpy(batch["label"]))
             with torch.cuda.amp.autocast():
-                val_outputs = sliding_window_inference(val_inputs, (96, 96), 4, model)
+                val_outputs = sliding_window_inference(val_inputs.type(torch.float32), (96, 96), 4, model)
             val_labels_list = decollate_batch(val_labels)
             val_labels_convert = [
                 post_label(val_label_tensor) for val_label_tensor in val_labels_list
@@ -46,7 +46,7 @@ def validation(epoch_iterator_val,model,global_step):
 
 
 def train(global_step, train_loader, val_loader, model, dice_val_best=0, global_step_best=0,
-            device=DEFAULT_DEVICE, output_dir='/scratch/ejg8qa/RESULTS', eval_num=250,
+            device=DEFAULT_DEVICE, output_dir='/scratch/ejg8qa/RESULTS', eval_num=1,
             max_iterations=5000):
     
     model.train()

@@ -7,11 +7,14 @@ import numpy as np
 import json
 from PIL import Image
 import torch
+from torchvision.transforms import transforms
 import pdb
+from sklearn.model_selection import train_test_split
 
 from swin.hist_utils import augment_data
 from swin.mlia_swin_transformer import SwinUNETR
 from swin.train import train, validation
+
 
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -74,7 +77,8 @@ def dataloader(x_dir,y_dir,batch_size=1,ref=None):
                 idx = img[2:]
                 y_file = f'mask{idx}'
                 fpy = os.path.join(y_dir,y_file)
-                cur_y.append(np.asarray(Image.open(fpy).resize((256,256))))
+                y = np.asarray(Image.open(fpy).resize((256,256)))
+                cur_y.append(np.where(y > 127,1,0))
                 y_names.append(y_file)
         batch_x = np.expand_dims(np.array(cur_x),axis=1)
         batch_y = np.expand_dims(np.array(cur_y),axis=1)
@@ -94,7 +98,8 @@ def dataloader(x_dir,y_dir,batch_size=1,ref=None):
                 idx = img[2:]
                 y_file = f'mask{idx}'
                 fpy = os.path.join(y_dir,y_file)
-                cur_y.append(np.asarray(Image.open(fpy).resize((256,256))))
+                y = np.asarray(Image.open(fpy).resize((256,256)))
+                cur_y.append(np.where(y > 127,1,0))
                 y_names.append(y_file)
 
         batch_x = np.expand_dims(np.array(cur_x),axis=1)
@@ -135,9 +140,11 @@ def train_network(config,input_dir,output_dir):
     train_X_location = os.path.join(input_dir,hyp['X_data_folder'])
     train_Y_location = os.path.join(input_dir,hyp['Y_data_folder'])
     data = dataloader(train_X_location,train_Y_location,batch_size=hyp['batch_size'],ref=ref)
-    train_data = data[:-2]
-    val_data = data[-2:]
+    #train_data = data[:-2]
+    #val_data = data[-2:]
+    train_data, val_data = train_test_split(data,test_size=0.2)
     ed = time()
+    pdb.set_trace()
 
     print(f'Loaded images in {ed-sd} sec.')
     print(f"Beginning training with {len(train_data)} epochs and {len(val_data)} validation epochs")
