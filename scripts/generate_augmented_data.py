@@ -14,4 +14,4 @@ def load_args():
 
 if __name__ == '__main__':
     args = load_args()
-    augment_data(args.input_data, args.input_mask, args.output_data, args.output_mask, args.multiplier)
+    augment_data(args.input_data, args.input_mask, args.output_data, args.output_mask, int(args.multiplier))
