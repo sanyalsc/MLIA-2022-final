@@ -88,7 +88,39 @@ def zero_pad_image(data):
 def train_network(config,input_dir):
     model = SwinUNETR(**config)
     #TODO: 1) implement training
-    #TODO: 2) save trained weights and 
+    #TODO: 2) save trained weights and
+
+
+def visualize_results(data_dir, mask_dir, vis_dir, color=(245, 84, 66)):
+    """
+    Creates segmentation result visualization by overlaying label masks on input images
+
+    :param data_dir: input data directory
+    :param mask_dir: label mask directory
+    :param vis_dir: output directory
+    :param color: highlight color for segmentation mask
+    """
+    image_files = [f for f in os.listdir(data_dir) if f.endswith('.png')]
+    label_files = [f for f in os.listdir(mask_dir) if f.endswith('.png')]
+    assert len(image_files) == len(label_files), 'number of images does not match number of labels'
+
+    if not os.path.exists(vis_dir):
+        os.mkdir(vis_dir)
+
+    for filename in image_files:
+        src_no = int(filename.replace('im', '').replace('.png', ''))
+        image_path = os.path.join(data_dir, filename)
+        label_path = os.path.join(mask_dir, f'mask{src_no}.png')
+        assert os.path.exists(label_path), f'{label_path} does not exist'
+
+        image_arr = np.asarray(Image.open(image_path))
+        label_arr = np.asarray(Image.open(label_path))
+
+        vis_arr = np.stack((image_arr,) * 3, axis=2)
+        vis_arr[np.where(label_arr > 0)] = color
+
+        vis_img = Image.fromarray(vis_arr, 'RGB')
+        vis_img.save(os.path.join(vis_dir, f'vis{src_no}.png'))
 
 
 def main(config_filepath,train,inference,input_dir):
