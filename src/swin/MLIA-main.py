@@ -2,13 +2,13 @@ import argparse
 import os
 import sys
 from time import time
+from pathlib import Path
 
 import numpy as np
 import json
 from PIL import Image
 import torch
 from torchvision.transforms import transforms
-import pdb
 from sklearn.model_selection import train_test_split
 
 from swin.hist_utils import augment_data
@@ -22,6 +22,8 @@ from monai.transforms import (
 )
 
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+DEFAULT_HIST_REF = Path(__file__).parents[2] / 'configs/im107.png'
+DEFAULT_WEIGHTS = Path(__file__).parents[2] / 'weights/current_best.pth'
 
 def load_args():
     parser = argparse.ArgumentParser()
@@ -185,18 +187,42 @@ def run_inference(config,input_dir, output_dir):
     post_label = AsDiscrete(to_onehot=2)
     post_pred = AsDiscrete(argmax=True,to_onehot=2)
     dice_metric = DiceMetric(include_background=True, reduction="mean", get_not_nans=False)
+    dice_metric_all = DiceMetric(include_background=True, reduction="mean", get_not_nans=False)
+    img_arr = []
+    seg_arr = []
+    labels = []
+    dice_scores = {}
     for i, img in enumerate(data):
         name = img['ynames'][0]
+        img_arr.append(img['image'][0,0])
         result = model(torch.from_numpy(img['image']))
         bg = result[0,0].detach().numpy()
         detection = result[0,1].detach().numpy()
         im = np.where(bg < detection,1,0)
+        seg_arr.append(255*im.astype(np.uint8))
         seg_image = Image.fromarray(255*im.astype(np.uint8),'L')
         outpath = os.path.join(output_dir,name)
+        labels.append(name[4:].replace('.png',''))
         seg_image.save(outpath)
+
+        pred = post_pred(torch.permute(result,(1,0,2,3)))
+        lab = post_label(img['label'])
+
+        dice_metric(y_pred=pred, y=lab)
+        dice_metric_all(y_pred=pred,y=lab)
+        dice_scores[img['xnames'][0]] = dice_metric.aggregate().item()
+        dice_metric.reset()
+    print(f'Total dice score:{dice_metric_all.aggregate().item()}')
+    with open(os.path.join(output_dir,'dice_scores.txt'),'w') as f:
+        for k,v in dice_scores.items():
+            f.write(f'{k} had score {v}\n')
+
+    vis_out = os.path.join(output_dir, 'overlay_results')
+    visualize_results(img_arr,seg_arr,vis_out,names=labels)
+    gt_out = os.path.join(output_dir,'gt')
+    visualize_results(X_location,Y_location,gt_out) 
         
-        
-def visualize_results(data_dir, mask_dir, vis_dir, color=(245, 84, 66)):
+def visualize_results(data_dir, mask_dir, vis_dir, color=(245, 84, 66),names=[]):
     """
     Creates segmentation result visualization by overlaying label masks on input images
 
@@ -205,35 +231,52 @@ def visualize_results(data_dir, mask_dir, vis_dir, color=(245, 84, 66)):
     :param vis_dir: output directory
     :param color: highlight color for segmentation mask
     """
-    image_files = [f for f in os.listdir(data_dir) if f.endswith('.png')]
-    label_files = [f for f in os.listdir(mask_dir) if f.endswith('.png')]
-    assert len(image_files) == len(label_files), 'number of images does not match number of labels'
 
     if not os.path.exists(vis_dir):
         os.mkdir(vis_dir)
+    if names:
+        for i in range(len(data_dir)):
+            image_arr = data_dir[i]
+            label_arr = mask_dir[i]
+            vis_arr = np.stack((image_arr,) * 3, axis=2)
+            vis_arr[np.where(label_arr > 0)] = color
 
-    for filename in image_files:
-        src_no = int(filename.replace('im', '').replace('.png', ''))
-        image_path = os.path.join(data_dir, filename)
-        label_path = os.path.join(mask_dir, f'mask{src_no}.png')
-        assert os.path.exists(label_path), f'{label_path} does not exist'
+            vis_img = Image.fromarray(vis_arr, 'RGB')
+            vis_img.save(os.path.join(vis_dir, f'vis{names[i]}.png'))
+    else:
+        image_files = [f for f in os.listdir(data_dir) if f.endswith('.png')]
+        label_files = [f for f in os.listdir(mask_dir) if f.endswith('.png')]
+        for filename in image_files:
+            src_no = int(filename.replace('im', '').replace('.png', ''))
+            image_path = os.path.join(data_dir, filename)
+            label_path = os.path.join(mask_dir, f'mask{src_no}.png')
+            if not os.path.exists(label_path):
+                continue
 
-        image_arr = np.asarray(Image.open(image_path))
-        label_arr = np.asarray(Image.open(label_path))
+            image_arr = np.asarray(Image.open(image_path))
+            label_arr = np.asarray(Image.open(label_path))
 
-        vis_arr = np.stack((image_arr,) * 3, axis=2)
-        vis_arr[np.where(label_arr > 0)] = color
+            vis_arr = np.stack((image_arr,) * 3, axis=2)
+            vis_arr[np.where(label_arr > 0)] = color
 
-        vis_img = Image.fromarray(vis_arr, 'RGB')
-        vis_img.save(os.path.join(vis_dir, f'vis{src_no}.png'))
+            vis_img = Image.fromarray(vis_arr, 'RGB')
+            vis_img.save(os.path.join(vis_dir, f'vis{src_no}.png'))
 
 
 def main(config_filepath,train,inference,input_dir, output_dir):
     config = load_model_config(config_filepath)
-    if train:
-        #training_dir = os.path.join(os.getcwd(), '..', '..', 'data', 'Training')
-        augment(input_dir, multiplier=6)
+    
+    if config['swin']['histogram_matching_reference']=='default':
+        config['swin']['histogram_matching_reference']=DEFAULT_HIST_REF
+    if config['hyperparams']['weights']=='default':
+        config['hyperparams']['weights']=DEFAULT_WEIGHTS
 
+    if not os.path.exists(output_dir):
+        os.mkdir(output_dir)
+    if train:
+        res = os.path.join(output_dir,'RESULTS')
+        if not os.path.exists(res):
+            os.mkdir(res)
         train_network(config,input_dir,output_dir)
     elif inference:
         run_inference(config,input_dir,output_dir)
