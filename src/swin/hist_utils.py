@@ -11,7 +11,7 @@ def preprocess(input_batch, reference):
     print('running histogram match')
     matched_imgs = []
     device = input_batch.device
-    for img in input_batch.numpy():
+    for img in input_batch.cpu().numpy():
         match_img = match_histograms(img, reference, channel_axis=0)
         matched_imgs.append(torch.from_numpy(match_img))
         # TODO: Make sure output of match_histograms is c, h, w !!
