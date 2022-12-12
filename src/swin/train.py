@@ -25,7 +25,7 @@ def validation(epoch_iterator_val,model,global_step):
     dice_metric = DiceMetric(include_background=True, reduction="mean", get_not_nans=False)
     with torch.no_grad():
         for step, batch in enumerate(epoch_iterator_val):
-            val_inputs, val_labels = (torch.from_numpy(batch["image"]), torch.from_numpy(batch["label"]))
+            val_inputs, val_labels = (torch.from_numpy(batch["image"]).cuda(), torch.from_numpy(batch["label"]).cuda())
             with torch.cuda.amp.autocast():
                 val_outputs = sliding_window_inference(val_inputs.type(torch.float32), (96, 96), 4, model)
             val_labels_list = decollate_batch(val_labels)
