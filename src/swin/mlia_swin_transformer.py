@@ -18,13 +18,15 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch.utils.checkpoint as checkpoint
 from torch.nn import LayerNorm
-from einops.layers.torch import Rearrange, Reduce
+from PIL import Image
 
 from monai.networks.blocks import MLPBlock as Mlp
 from monai.networks.blocks import PatchEmbed, UnetOutBlock, UnetrBasicBlock, UnetrUpBlock
 from monai.networks.layers import DropPath, trunc_normal_
-from monai.utils import ensure_tuple_rep, look_up_option
+from monai.utils import ensure_tuple_rep, look_up_option, optional_import
 from swin.hist_utils import preprocess as histogram_match
+
+rearrange, _ = optional_import("einops", name="rearrange")
 
 __all__ = [
     "SwinUNETR",
@@ -96,7 +98,7 @@ class SwinUNETR(nn.Module):
             #Todo: test
             print('Loading histogram matching reference')
             self.histogram=True
-            self.histogram_reference = histogram_matching_reference
+            self.histogram_reference = np.expand_dims(np.array(Image.open(histogram_matching_reference)),axis=0)
 
         img_size = ensure_tuple_rep(img_size, spatial_dims)
         patch_size = ensure_tuple_rep(2, spatial_dims)
@@ -123,7 +125,6 @@ class SwinUNETR(nn.Module):
             raise ValueError("feature_size should be divisible by 12.")
 
         self.normalize = normalize
-
         self.swinViT = SwinTransformer(
             in_chans=in_channels,
             embed_dim=feature_size,
@@ -748,7 +749,7 @@ class BasicLayer(nn.Module):
         x_shape = x.size()
         b, c, h, w = x_shape
         window_size, shift_size = get_window_size((h, w), self.window_size, self.shift_size)
-        x = Rearrange(x, "b c h w -> b h w c")
+        x = rearrange(x, "b c h w -> b h w c")
         hp = int(np.ceil(h / window_size[0])) * window_size[0]
         wp = int(np.ceil(w / window_size[1])) * window_size[1]
         attn_mask = compute_mask([hp, wp], window_size, shift_size, x.device)
@@ -757,7 +758,7 @@ class BasicLayer(nn.Module):
         x = x.view(b, h, w, -1)
         if self.downsample is not None:
             x = self.downsample(x)
-        x = Rearrange(x, "b h w c -> b c h w")
+        x = rearrange(x, "b h w c -> b c h w")
         return x
 
 
