@@ -1,0 +1,26 @@
+{
+    "swin":{
+        "img_size": [256,256],
+        "in_channels": 1,
+        "out_channels": 2,
+        "depths":  [2, 2, 2, 2],
+        "num_heads": [6, 12, 24, 48],
+        "feature_size": 12,
+        "norm_name": "instance",
+        "drop_rate": 0.7,
+        "attn_drop_rate": 0.4,
+        "dropout_path_rate": 0.4,
+        "normalize": true,
+        "use_checkpoint": true,
+        "spatial_dims": 2,
+        "downsample":"merging",
+        "histogram_matching_reference":"default"
+    },
+    "hyperparams":{
+        "batch_size":8,
+        "X_data_folder":"train_imageData",
+        "Y_data_folder":"train_myocardium_segmentation",
+        "max_iterations":5000,
+        "weights":""
+    }
+}
