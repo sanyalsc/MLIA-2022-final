@@ -36,8 +36,7 @@ def load_args():
 def load_model_config(config_file:str):
     with open(config_file,'r') as cfg:
         return json.load(cfg)
-
-
+        
 
 def augment(training_dir, multiplier):
     src_img_dir = os.path.join(training_dir, 'train_imageData')
@@ -130,7 +129,6 @@ def zero_pad_image(data):
     currentH = lastPix_new[2]
     currentW = lastPix_new[3]
     print("the images have been padded out to", currentH, currentW)
-    raise NotImplementedError
 
 
 def train_network(config,input_dir,output_dir):
@@ -197,9 +195,40 @@ def run_inference(config,input_dir, output_dir):
         outpath = os.path.join(output_dir,name)
         seg_image.save(outpath)
         
+        
+def visualize_results(data_dir, mask_dir, vis_dir, color=(245, 84, 66)):
+    """
+    Creates segmentation result visualization by overlaying label masks on input images
+
+    :param data_dir: input data directory
+    :param mask_dir: label mask directory
+    :param vis_dir: output directory
+    :param color: highlight color for segmentation mask
+    """
+    image_files = [f for f in os.listdir(data_dir) if f.endswith('.png')]
+    label_files = [f for f in os.listdir(mask_dir) if f.endswith('.png')]
+    assert len(image_files) == len(label_files), 'number of images does not match number of labels'
+
+    if not os.path.exists(vis_dir):
+        os.mkdir(vis_dir)
+
+    for filename in image_files:
+        src_no = int(filename.replace('im', '').replace('.png', ''))
+        image_path = os.path.join(data_dir, filename)
+        label_path = os.path.join(mask_dir, f'mask{src_no}.png')
+        assert os.path.exists(label_path), f'{label_path} does not exist'
+
+        image_arr = np.asarray(Image.open(image_path))
+        label_arr = np.asarray(Image.open(label_path))
+
+        vis_arr = np.stack((image_arr,) * 3, axis=2)
+        vis_arr[np.where(label_arr > 0)] = color
+
+        vis_img = Image.fromarray(vis_arr, 'RGB')
+        vis_img.save(os.path.join(vis_dir, f'vis{src_no}.png'))
 
 
-def main(config_filepath,train,inference,input_dir,output_dir):
+def main(config_filepath,train,inference,input_dir, output_dir):
     config = load_model_config(config_filepath)
     if train:
         #training_dir = os.path.join(os.getcwd(), '..', '..', 'data', 'Training')
@@ -208,8 +237,6 @@ def main(config_filepath,train,inference,input_dir,output_dir):
         train_network(config,input_dir,output_dir)
     elif inference:
         run_inference(config,input_dir,output_dir)
-        #TODO: implement this for testing...
-        #run_inference(config,input)
 
 
 if __name__ =='__main__':
