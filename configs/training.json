@@ -19,7 +19,7 @@
     "hyperparams":{
         "batch_size":8,
         "X_data_folder":"train_imageData",
-        "Y_data_folder":"train_myocardium_segmentation",
+        "Y_data_folder":"train_myocardium_segmentations",
         "max_iterations":5000,
         "weights":""
     }
