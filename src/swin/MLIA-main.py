@@ -16,6 +16,11 @@ from swin.mlia_swin_transformer import SwinUNETR
 from swin.train import train, validation
 
 
+from monai.metrics import DiceMetric
+from monai.transforms import (
+    AsDiscrete,
+)
+
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 def load_args():
@@ -163,6 +168,37 @@ def train_network(config,input_dir,output_dir):
         f.write(f'Final results:\nBest Dice: {dice_val_best}\nGlobal step:{global_step_best}')
 
 
+def run_inference(config,input_dir, output_dir):
+
+    model = SwinUNETR(**config['swin']).to(DEVICE)
+
+    hyp = config['hyperparams']
+    if hyp['weights']:
+        weights = torch.load(hyp['weights'],map_location=torch.device('cpu'))
+        model.load_state_dict(weights)
+    ref = Image.open(config['swin']['histogram_matching_reference'])
+    ref = np.expand_dims(np.array(ref),axis=0)
+    sd = time()
+    X_location = os.path.join(input_dir,hyp['X_data_folder'])
+    Y_location = os.path.join(input_dir,hyp['Y_data_folder'])
+    data = dataloader(X_location,Y_location,batch_size=1,ref=ref)
+
+
+    post_label = AsDiscrete(to_onehot=2)
+    post_pred = AsDiscrete(argmax=True,to_onehot=2)
+    dice_metric = DiceMetric(include_background=True, reduction="mean", get_not_nans=False)
+    for i, img in enumerate(data):
+        name = img['ynames'][0]
+        result = model(torch.from_numpy(img['image']))
+        bg = result[0,0].detach().numpy()
+        detection = result[0,1].detach().numpy()
+        im = np.where(bg < detection,1,0)
+        seg_image = Image.fromarray(255*im.astype(np.uint8),'L')
+        outpath = os.path.join(output_dir,name)
+        seg_image.save(outpath)
+        
+
+
 def main(config_filepath,train,inference,input_dir,output_dir):
     config = load_model_config(config_filepath)
     if train:
@@ -171,7 +207,7 @@ def main(config_filepath,train,inference,input_dir,output_dir):
 
         train_network(config,input_dir,output_dir)
     elif inference:
-        raise NotImplementedError
+        run_inference(config,input_dir,output_dir)
         #TODO: implement this for testing...
         #run_inference(config,input)
 
