@@ -56,3 +56,5 @@ To run inference on a dataset, a config file similar to the one for trainig is n
 To run inference,
 
 $ python <path to MLIA-2022-FINAL>/src/swin/MLIA-main.py --inference --net-cfg <path to json config> --input <path to CardiacImage_data/Testing1-withlabel> --output <path to output directory>
+  
+No Rivanna implementation is needed for inference.
