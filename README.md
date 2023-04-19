@@ -3,7 +3,7 @@ MLIA final project, fall 2022
 
 Shantanu Sanyal, Allan Wan, Isabelle Liu, Julian Nguyen
 
-SWIN UNETR for semantic segmentation of brain tumors implementation
+SWIN UNETR for semantic segmentation of heart MRI implementation
 
 https://arxiv.org/pdf/2201.01266.pdf
 
